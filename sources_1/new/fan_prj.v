@@ -22,10 +22,10 @@
 
 module fan_controller #(SYS_FREQ = 125, N = 12) (
     input clk, reset_p,
-    input btn,
-    input fan_en,
-    output [7:0] led_bar,
-    output pwm   );
+    input btn,              // 버튼 입력
+    input fan_en,           // 팬 동작 enable 신호
+    output reg [7:0] state, // 현재 동작 state 표시
+    output pwm   );         // 출력 PWM 신호
 
     //state 정의
     localparam S_IDLE = 8'b0000_0001;
@@ -42,7 +42,7 @@ module fan_controller #(SYS_FREQ = 125, N = 12) (
     button_cntr btn0(clk, reset_p, btn, btn_p);
 
     // FSM 
-    reg [7:0] state, next_state;
+    reg [7:0] next_state;
     always @(negedge clk, posedge reset_p) begin
         if(reset_p) begin
             state <= S_IDLE;
