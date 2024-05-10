@@ -23,6 +23,7 @@
 module fan_controller #(SYS_FREQ = 125, N = 12) (
     input clk, reset_p,
     input btn,
+    input fan_en,
     output [7:0] led_bar,
     output pwm   );
 
@@ -36,7 +37,7 @@ module fan_controller #(SYS_FREQ = 125, N = 12) (
     localparam S_6    = 8'b0100_0000;
     localparam S_7    = 8'b1000_0000;
 
-    // 버튼 입력부
+    // 버튼 입력부 컨트롤러
     wire btn_p;
     button_cntr btn0(clk, reset_p, btn, btn_p);
 
@@ -51,87 +52,62 @@ module fan_controller #(SYS_FREQ = 125, N = 12) (
         end
     end
 
+    // btn 입력에 따른 state 변경 로직
+    always @(posedge clk, posedge reset_p) begin
+        if(reset_p) begin
+            next_state <= S_IDLE;
+        end
+        else begin
+            if (fan_en) begin // fan_en이 활성화 되었을 때만 동작
+                if (btn_p) begin
+                    next_state <= {state[6:0], state[7]}; // state를 1비트씩 shift하여 다음 state로 이동
+                end 
+            end
+            else begin // fan_en이 0인 경우 IDLE 상태로 이동- fan 멈춤
+                next_state <= S_IDLE;
+            end
+        end
+    end
+
     // state 별 듀티 제어
     reg [N-1:0] fan_duty;
     always @(posedge clk, posedge reset_p) begin
         if (reset_p) begin
             fan_duty <= 0;
-            next_state <= S_IDLE;
         end
         else begin
             case (state)
                 S_IDLE : begin
-                    if (btn_p) begin
-                        next_state <= S_1;
-                    end
-                    else begin
-                        fan_duty <= 0;
-                    end
+                    fan_duty <= 0;
                 end
 
                 S_1 : begin
-                    if (btn_p) begin
-                        next_state <= S_2;
-                    end
-                    else begin
-                        fan_duty <= 1023;
-                    end
+                    fan_duty <= 1023;
                 end
 
                 S_2 : begin
-                    if (btn_p) begin
-                        next_state <= S_3;
-                    end
-                    else begin
-                        fan_duty <= 1535;
-                    end
+                    fan_duty <= 1535;
                 end
 
                 S_3 : begin
-                    if (btn_p) begin
-                        next_state <= S_4;
-                    end
-                    else begin
-                        fan_duty <= 2047;
-                    end
+                    fan_duty <= 2047;
                 end
 
                 S_4 : begin
-                    if (btn_p) begin
-                        next_state <= S_5;
-                    end
-                    else begin
-                        fan_duty <= 2559;
-                    end
+                    fan_duty <= 2559;
                 end
 
                 S_5 : begin
-                    if (btn_p) begin
-                        next_state <= S_6;
-                    end
-                    else begin
-                        fan_duty <= 3071;
-                    end
+                    fan_duty <= 3071;
                 end
 
                 S_6 : begin
-                    if (btn_p) begin
-                        next_state <= S_7;
-                    end
-                    else begin
-                        fan_duty <= 3583;
-                    end
+                    fan_duty <= 3583;
                 end
 
                 S_7 : begin
-                    if (btn_p) begin
-                        next_state <= S_IDLE;
-                    end
-                    else begin
-                        fan_duty <= 4095;
-                    end
+                    fan_duty <= 4095;
                 end
-
             endcase
         end
     end
