@@ -3,66 +3,6 @@
 
 
 
-module tb_pwm_test();
-
-    reg clk;
-    reg reset_p;
-    wire pwm;
-
-    //50hz 7.0%duty
-    pwm_cntr pwm0(clk, reset_p, pwm, 1000, 100);
-
-
-    initial begin
-        clk = 0;
-        reset_p = 1;
-        forever #4 clk = ~clk;
-    end
-
-    initial begin
-        #10 reset_p = 0;
-    end
-endmodule 
-
-module pwm_test #(
-    parameter SYS_FREQ = 125 //125MHz
-    )(
-    input clk, reset_p,
-    output pwm   );
-
-    wire clk_usec, clk_msec, clk_sec;
-    clock_usec clk_us0(clk, reset_p, clk_usec);
-    clock_div_1000 clk_div0(clk, reset_p, clk_usec, clk_msec);
-    clock_div_1000 clk_div1(clk, reset_p, clk_msec, clk_sec);
-
-    wire pwn_0, pwm_1, pwm_2, pwm_3, pwm_4, pwm_5;
-    pwm_cntr pwm0(clk, reset_p, pwm_0, 50, 50);
-    pwm_cntr pwm1(clk, reset_p, pwm_1, 50, 60);
-    pwm_cntr pwm2(clk, reset_p, pwm_2, 50, 70);
-    pwm_cntr pwm3(clk, reset_p, pwm_3, 50, 80);
-    pwm_cntr pwm4(clk, reset_p, pwm_4, 50, 90);
-    pwm_cntr pwm5(clk, reset_p, pwm_5, 50, 100);
-
-    reg [2:0] cnt = 0;
-    always @(posedge clk, posedge reset_p) begin
-        if (reset_p) begin
-            cnt = 0;
-        end
-        else begin
-            if (clk_sec) begin
-                cnt = cnt + 1;
-                if (cnt >= 6) cnt = 0;
-            end
-        end
-    end
-
-    assign pwm = cnt == 0 ? pwm_0 :
-                 cnt == 1 ? pwm_1 :
-                 cnt == 2 ? pwm_2 :
-                 cnt == 3 ? pwm_3 :
-                 cnt == 4 ? pwm_4 : pwm_5;
-endmodule
-
 
 module pwm_controller #(
     parameter SYS_FREQ = 125, //125MHz
