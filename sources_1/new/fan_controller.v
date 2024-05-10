@@ -120,6 +120,4 @@ module fan_controller #(SYS_FREQ = 125, N = 12) (
                                    .pwm_freq(200),
                                    .pwm(pwm)
                                    );
-    //디버깅용 LED연결
-    assign led_bar = state;
 endmodule
