@@ -58,7 +58,7 @@ module button_cntr(
     edge_detector_n ed1(clk, reset_p, clk_div[16], clk_div_16);
 
     //버튼 입력 디바운싱 DFF, 1ms
-    reg [3:0] debounced_btn;
+    reg debounced_btn;
     always @(posedge clk, posedge reset_p) begin
         if (reset_p) debounced_btn = 0;
         else if (clk_div_16) debounced_btn = btn;
