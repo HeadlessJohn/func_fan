@@ -1617,7 +1617,7 @@ module i2c_txt_lcd_top (
                     .valid(send_e),
                     .sda(sda),
                     .scl(scl) );
-endmodule
+endmodule 
 
 
 module fan_info( 
@@ -1788,7 +1788,7 @@ module fan_info(
             case (state)
 
                 GOTO_LINE1 : begin // temp로 커서 이동
-                    if (cnt_us < 100_000) begin
+                    if (cnt_us < 50_000) begin
                         cnt_us_e = 1;
                         line = 0;
                         pos = 0;
@@ -1803,7 +1803,7 @@ module fan_info(
                 end
 
                 SEND_LINE1 : begin
-                    if (cnt_us < 100_000) begin //3ms
+                    if (cnt_us < 50_000) begin //3ms
                         cnt_us_e = 1;
 						// fan_speed, humi, temp
                         string = {fan_speed_display, " ", humi_10+8'h30, humi_1+8'h30, "% ", temp_10+8'h30, temp_1+8'h30, 8'b1101_1111,"C"}; // "TEMP : 20'C"
@@ -1819,7 +1819,7 @@ module fan_info(
                 end
 
                 GOTO_LINE2: begin
-                    if (cnt_us < 100_000) begin
+                    if (cnt_us < 50_000) begin
                         cnt_us_e = 1;
                         line = 1;
                         pos = 0;
@@ -1834,9 +1834,14 @@ module fan_info(
                 end
 
                 SEND_LINE2 : begin
-                    if (cnt_us < 100_000) begin //3ms
+                    if (cnt_us < 50_000) begin //3ms
                         cnt_us_e = 1;
-                        string = {"SAMSONG ", time_h_1+8'h30, "h", time_m_10+8'h30, time_m_1+8'h30, "m", time_s_10+8'h30, time_s_1+8'h30, "s"};
+						if ({fan_speed} == 0) begin
+							string = "    STOPPED!    ";
+						end
+						else begin
+							string = {"RUNNING ", time_h_1+8'h30, "h", time_m_10+8'h30, time_m_1+8'h30, "m", time_s_10+8'h30, time_s_1+8'h30, "s"};
+						end
                         char_num = 16;
                         rs = 1;
                         send = 1;
