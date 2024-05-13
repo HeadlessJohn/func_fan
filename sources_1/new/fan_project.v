@@ -9,6 +9,7 @@ module project_1(
     output pwm, led,
     output [3:0] com,
     output [7:0] seg_7,
+    output buz_clk,
     output sda, scl    );
     
     wire [7:0] fan_led, timer_led;
@@ -17,25 +18,48 @@ module project_1(
     wire fan_en, run_e;
     wire [7:0] fan_speed;
     wire [3:0] fan_timer_state;
+    reg buz_on;
+    always @(posedge clk, posedge reset_p)begin
+        if(reset_p)begin
+            buz_on <= 0;
+        end
+        else begin
+            if(timeout_pedge)begin
+                buz_on <= 1;
+            end
+            if(btn) begin
+                buz_on <= 0;
+            end
+        end
+    end
 
-    fan_info lcd( .clk          (clk),
-                  .reset_p      (reset_p),
-                  .dht11_data   (dht11_data),
-                  .fan_speed    (fan_speed),
+    fan_info lcd( .clk            (clk),
+                  .reset_p        (reset_p),
+                  .dht11_data     (dht11_data),
+                  .fan_speed      (fan_speed),
                   .fan_timer_state(fan_timer_state),
-                  .sda          (sda), 
-                  .scl          (scl),
-                  .time_h_1     (cur_time[19:16]),
-                  .time_m_10    (cur_time[15:12]),
-                  .time_m_1     (cur_time[11:8]),
-                  .time_s_10    (cur_time[7:4]),
-                  .time_s_1     (cur_time[3:0])    );
+                  .sda            (sda), 
+                  .scl            (scl),
+                  .time_h_1       (cur_time[19:16]),
+                  .time_m_10      (cur_time[15:12]),
+                  .time_m_1       (cur_time[11: 8]),
+                  .time_s_10      (cur_time[ 7: 4]),
+                  .time_s_1       (cur_time[ 3: 0])    );
             
 
-    fan_controller #(125, 12) (.clk(clk), .reset_p(reset_p), .btn(btn[0]), .fan_en(fan_en), .state(fan_speed), .pwm(pwm), .run_e(run_e));
-    led_controller (clk, reset_p, btn[1], led);
+    fan_controller #(125, 12) (.clk     (clk), 
+                               .reset_p (reset_p), 
+                               .btn     (btn[0]), 
+                               .fan_en  (fan_en), 
+                               .state   (fan_speed), 
+                               .pwm     (pwm), 
+                               .run_e   (run_e));
+
+    led_controller led_cntr(clk, reset_p, btn[1], led);
     
-    fan_timer(clk, reset_p, btn[2], run_e, alarm, fan_timer_state, timeout_pedge, cur_time, timer_led);
+    fan_timer fan_tmr(clk, reset_p, btn[2], run_e, alarm, fan_timer_state, timeout_pedge, cur_time, timer_led);
+
+    buz_top buzz(.clk (clk), .reset_p (reset_p), .buz_on (buz_on), .buz_clk (buz_clk));
    
     assign fan_en = timeout_pedge ? 0 : 1;
     
@@ -161,62 +185,6 @@ module clk_set(
 
 endmodule
 
-// module pwm_controller #(
-//     parameter SYS_FREQ = 125, //125MHz
-//     parameter N = 12 // 2^7 = 128단계
-//     )(
-//     input clk, reset_p,
-//     input [N-1:0] duty, //N비트의 duty비트
-//     input [13:0] pwm_freq,
-//     output reg pwm    );
-
-//     localparam REAL_SYS_FREQ = SYS_FREQ * 1000 * 1000;
-
-//     reg [26:0] cnt;
-//     reg pwm_clk_nbit; // 
-    
-//     //clock에 관계 없는 부분이므로 나눗셈을 사용해도 negative slack이 발생하지 않음
-//     //처음에 나눗셈을 계산하는동안 긴 pdt 시간 동안 오동작 발생 가능성 있음
-//     wire [26:0] temp;
-//     assign temp = (REAL_SYS_FREQ /pwm_freq);
-
-//     always @(posedge reset_p, posedge clk) begin
-//         if (reset_p) begin
-//             pwm_clk_nbit <= 0;
-//             cnt <= 0;
-//         end
-//         else begin
-//             // 128단계 제어 -> 2^7로 나누므로 우쉬프트 연산으로 대체 가능
-//             if (cnt >= temp[26:N] - 1) begin
-//             // 100단계 제어
-//             // if (cnt >= REAL_SYS_FREQ /pwm_freq /100 - 1) begin
-//                 cnt <= 0;
-//                 pwm_clk_nbit <= 1'b1;
-//             end
-//             else begin
-//                 pwm_clk_nbit <= 1'b0;
-//             end
-//             cnt = cnt + 1;
-
-//         end
-//     end
-
-//     reg [N-1:0] cnt_duty;
-//     always @(posedge reset_p, posedge clk) begin
-//         if (reset_p) begin
-//             pwm <= 1'b0;
-//             cnt_duty <= 0;
-//         end
-//         else begin
-//             if (pwm_clk_nbit) begin
-//                 //2^N단계로 제어
-//                 cnt_duty <= cnt_duty + 1;
-//                 if(cnt_duty < duty) pwm <= 1'b1;
-//                 else pwm <= 1'b0;
-//             end           
-//         end
-//     end
-// endmodule
 
 module fan_timer(
     input clk, reset_p,
@@ -328,50 +296,6 @@ module down_timer(
     assign cur_time = {cur_hour, cur_min10, cur_min1, cur_sec10, cur_sec1};
         
 endmodule
-
-// module load_count_ud_N #(
-//     parameter N = 10 )(
-//     input clk, reset_p,
-//     input clk_up,
-//     input clk_dn,
-//     input data_load,
-//     input [3:0] set_value,
-//     output reg [3:0] digit,
-//     output reg clk_over_flow,
-//     output reg clk_under_flow);
-
-//     always @(posedge clk, posedge reset_p) begin
-//         if (reset_p) begin
-//             digit = 0;
-//             clk_over_flow = 0;
-//             clk_under_flow = 0;
-//         end
-//         else begin
-//             if (data_load) begin
-//                 digit = set_value;
-//             end
-//             else if (clk_up) begin
-//                 if (digit >= (N-1)) begin 
-//                     digit = 0; 
-//                     clk_over_flow = 1;
-//                 end
-//                 else begin digit = digit + 1;
-//                 end
-//             end
-//             else if (clk_dn) begin
-//                 digit = digit - 1;
-//                 if (digit > (N-1)) begin
-//                     digit = (N-1);
-//                     clk_under_flow = 1;
-//                 end
-//             end
-//             else begin 
-//                 clk_over_flow = 0;
-//                 clk_under_flow = 0;
-//             end
-//         end
-//     end
-// endmodule
 
 module led_controller(
     input clk, reset_p,
