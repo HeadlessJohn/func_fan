@@ -1623,18 +1623,18 @@ endmodule
 module fan_info( 
     input clk, reset_p,
     input [3:0] btn,
+	output [7:0] led_bar,
     output scl, sda );
     
-    localparam INIT_DEFAULT = 10'b00_0000_0001;
-    localparam GOTO_TEMP    = 10'b00_0000_0010;
-    localparam TEMPERATURE  = 10'b00_0000_0100;
-    localparam GOTO_TIME    = 10'b00_0000_1000;
-    localparam REMAING_TIME = 10'b00_0001_0000;
-    localparam GOTO_BAT     = 10'b00_1000_0000;
-    localparam REMAING_BAT  = 10'b01_0000_0000;
+    localparam GOTO_LINE1    = 10'b00_0000_0001;
+    localparam SEND_LINE1    = 10'b00_0000_0010;
+    localparam GOTO_LINE2    = 10'b00_0000_0100;
+    localparam SEND_LINE2    = 10'b00_0000_1000;
+    // localparam REMAING_TIME = 10'b00_0001_0000;
+    // localparam GOTO_BAT     = 10'b00_1000_0000;
+    // localparam REMAING_BAT  = 10'b01_0000_0000;
 
     wire init_flag;
-    
     
     wire clk_usec, clk_msec, clk_sec;
 	clock_usec # (125) usec (clk, reset_p, clk_usec);
@@ -1644,6 +1644,24 @@ module fan_info(
     wire [3:0] btn_p;
     button_cntr btn_0(clk, reset_p, btn[0], btn_p[0]);
 
+	reg [20:0] cnt_ms;
+	reg toggle_var;
+	always @(negedge clk, posedge reset_p) begin
+		if (reset_p) begin
+			cnt_ms <= 20'b0;
+			toggle_var <= 1'b0;
+		end
+		else begin
+			if (clk_msec) begin
+				cnt_ms <= cnt_ms + 1;
+				if (cnt_ms > 500)begin
+					toggle_var <= ~toggle_var;
+					cnt_ms <= 20'b0;
+				end
+			end
+		end
+	end
+    assign led_bar = {7'b0, toggle_var};
     
 
 	// ms 카운터
@@ -1667,22 +1685,29 @@ module fan_info(
 
 	// FSM
 	reg [9:0]state, next_state;
-    assign led_bar = state[7:0];
 	always @(negedge clk, posedge reset_p) begin
 		if (reset_p) begin
-			state <= INIT_DEFAULT;
+			state <= GOTO_LINE1;
 		end
 		else begin
 			state <= next_state;
 		end
 	end
 
+	reg [2:0] fan_speed;
     reg [7:0] temp_10, temp_1;
-    reg [7:0] time_m_10, time_m_1, time_s_10, time_s_1;
+	reg [7:0] humi_10, humi_1;
+    reg [7:0] time_h_1, time_m_10, time_m_1, time_s_10, time_s_1;
+	reg [(7*8)-1:0] fan_speed_display;
     always @(posedge clk, posedge reset_p) begin
         if (reset_p) begin
+			fan_speed   <= 0;
+			fan_speed_display <= 56'b0;
             temp_10     <= 2;
             temp_1      <= 4;
+			humi_10     <= 9;
+			humi_1      <= 0;
+			time_h_1    <= 2;
             time_m_10   <= 0;
             time_m_1    <= 0;
             time_s_10   <= 0;
@@ -1708,17 +1733,40 @@ module fan_info(
                 end
             end 
 
+
             if (btn_p[0]) begin
-                temp_1 = temp_1 + 1;
-                if (temp_1 == 10) begin
-                    temp_1 = 0;
-                    temp_10 = temp_10 + 1;
-                end
-                if (temp_10 == 10) temp_10 = 0;
+				fan_speed = fan_speed + 1;              
             end
-           
+			
+			if (toggle_var) begin
+				case (fan_speed)
+					0 : fan_speed_display       = "       ";
+					1 : fan_speed_display       = "+      ";
+					2 : fan_speed_display       = "+*     ";
+					3 : fan_speed_display       = "+*+    ";
+					4 : fan_speed_display       = "+*+*   ";
+					5 : fan_speed_display       = "+*+*+  ";
+					6 : fan_speed_display       = "+*+*+* ";
+					7 : fan_speed_display       = "+*+*+*+";
+					default : fan_speed_display = "       ";
+				endcase 
+			end
+			else begin
+				case (fan_speed)
+					0 : fan_speed_display       = "       ";
+					1 : fan_speed_display       = "*      ";
+					2 : fan_speed_display       = "*+     ";
+					3 : fan_speed_display       = "*+*    ";
+					4 : fan_speed_display       = "*+*+   ";
+					5 : fan_speed_display       = "*+*+*  ";
+					6 : fan_speed_display       = "*+*+*+ ";
+					7 : fan_speed_display       = "*+*+*+*";
+					default : fan_speed_display = "       ";
+				endcase 
+			end
         end
     end
+
     reg rs;
     reg line;
     reg [6:0] pos;
@@ -1734,102 +1782,69 @@ module fan_info(
             char_num = 0;
             send = 0;
             cnt_us_e = 0;
-            next_state = INIT_DEFAULT;
+            next_state = GOTO_LINE1;
         end
         else if (init_flag) begin
             case (state)
-                INIT_DEFAULT : begin
-                    if (cnt_us < 1_000) begin //3ms
-                        string ={"TEMP  :       " , 8'b1101_1111,"C"}; // "TEMP : 20'C"
+
+                GOTO_LINE1 : begin // temp로 커서 이동
+                    if (cnt_us < 100_000) begin
                         cnt_us_e = 1;
+                        line = 0;
+                        pos = 0;
+                        rs = 0;
+                        send = 1;
+                    end
+                    else begin
+                        send = 0;
+                        cnt_us_e = 0;
+                        next_state = SEND_LINE1;
+                    end
+                end
+
+                SEND_LINE1 : begin
+                    if (cnt_us < 100_000) begin //3ms
+                        cnt_us_e = 1;
+						// fan_speed, humi, temp
+                        string = {fan_speed_display, " ", humi_10+8'h30, humi_1+8'h30, "% ", temp_10+8'h30, temp_1+8'h30, 8'b1101_1111,"C"}; // "TEMP : 20'C"
                         char_num = 16;
                         rs = 1;
                         send = 1;
                     end
-                    else if (cnt_us < 20_000) begin
+                    else begin
                         send = 0;
+                        cnt_us_e = 0;
+                        next_state = GOTO_LINE2;                        
                     end
-                    else if (cnt_us < 25_000) begin
+                end
+
+                GOTO_LINE2: begin
+                    if (cnt_us < 100_000) begin
+                        cnt_us_e = 1;
                         line = 1;
                         pos = 0;
                         rs = 0;
                         send = 1;
                     end
-                    else if (cnt_us < 26_000) begin
+                    else begin
                         send = 0;
+                        cnt_us_e = 0;
+                        next_state = SEND_LINE2;
                     end
-                    else if (cnt_us < 30_000) begin
-                        string ="TIMER :         ";
+                end
+
+                SEND_LINE2 : begin
+                    if (cnt_us < 100_000) begin //3ms
+                        cnt_us_e = 1;
+                        string = {"SAMSONG ", time_h_1+8'h30, "h", time_m_10+8'h30, time_m_1+8'h30, "m", time_s_10+8'h30, time_s_1+8'h30, "s"};
                         char_num = 16;
                         rs = 1;
                         send = 1;
                     end
-                    else if (cnt_us < 50_000) begin
-                        send = 0;
-                    end
-                    else begin
-                        cnt_us_e = 0;
-                        next_state = GOTO_TEMP;
-                    end
-                end
-
-                GOTO_TEMP : begin // temp로 커서 이동
-                    if (cnt_us < 100_000) begin
-                        cnt_us_e = 1;
-                        line = 0;
-                        pos = 12;
-                        rs = 0;
-                        send = 1;
-                    end
                     else begin
                         send = 0;
                         cnt_us_e = 0;
-                        next_state = TEMPERATURE;
-                    end
-                end
-
-                TEMPERATURE : begin
-                    if (cnt_us < 100_000) begin //3ms
-                        cnt_us_e = 1;
-                        string = {temp_10+8'h30, temp_1+8'h30}; // "TEMP : 20'C"
-                        char_num = 2;
-                        rs = 1;
-                        send = 1;
-                    end
-                    else begin
-                        send = 0;
-                        cnt_us_e = 0;
-                        next_state = GOTO_TIME;                        
-                    end
-                end
-
-                GOTO_TIME : begin
-                    if (cnt_us < 100_000) begin
-                        cnt_us_e = 1;
-                        line = 1;
-                        pos = 10;
-                        rs = 0;
-                        send = 1;
-                    end
-                    else begin
-                        send = 0;
-                        cnt_us_e = 0;
-                        next_state = REMAING_TIME;
-                    end
-                end
-
-                REMAING_TIME : begin
-                    if (cnt_us < 100_000) begin //3ms
-                        cnt_us_e = 1;
-                        string = {time_m_10+8'h30, time_m_1+8'h30,"m", time_s_10+8'h30, time_s_1+8'h30,"s"};
-                        char_num = 6;
-                        rs = 1;
-                        send = 1;
-                    end
-                    else begin
-                        send = 0;
-                        cnt_us_e = 0;
-                        next_state = GOTO_TEMP;                        
+                        next_state = GOTO_LINE1;                        
                     end
                 end
             endcase

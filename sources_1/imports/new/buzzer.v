@@ -4,6 +4,7 @@
 module buz (
 	input clk, reset_p,
 	input [6:0] melody_data,
+	input buz_stop,
 	output reg buz_clk
 	);
 
@@ -275,12 +276,14 @@ module buz (
 			freq_cnt <= 0;
 		end
 		else begin
-			if (clk_usec_tick) begin
-				freq_cnt <= freq_cnt + freq;
-				if (freq_cnt > 500000) begin 
-					freq_cnt <= 0;
-					buz_clk <= ~buz_clk;
-				end
+			if (buz_stop==0) begin
+				if (clk_usec_tick) begin
+					freq_cnt <= freq_cnt + freq;
+					if (freq_cnt > 500000) begin 
+						freq_cnt <= 0;
+						buz_clk <= ~buz_clk;
+					end
+				end	
 			end
 		end
 	end
@@ -291,6 +294,7 @@ module time_millis #(
 	parameter sys_freq = 125 // MHz
 	)(
 	input clk, reset_p,
+	input timer_en,
 	output reg [31:0] millis
 	);
 
@@ -308,8 +312,13 @@ module time_millis #(
 			millis <= 0;
 		end
 		else begin
-			if (clk_msec_tick) begin
-				millis <= millis + 1;
+			if (timer_en) begin
+				if (clk_msec_tick) begin
+					millis <= millis + 1;
+				end
+			end
+			else begin
+				millis <= 0;
 			end
 		end
 	end
@@ -318,7 +327,7 @@ endmodule
 
 module buz_test_top (
 	input clk, reset_p,
-	input [1:0] btn,
+	input buz_on,
 	output buz_clk
 	);
 
@@ -822,29 +831,52 @@ module buz_test_top (
 
 	end
 
+	wire buz_on_p;
+	button_cntr btn0 (clk, reset_p, buz_on, buz_on_p, buz_on_n);
+
 	wire [31:0] current_time;
 	reg [31:0] last_time;
+	reg timer_en;
 	time_millis time_millis_inst (.clk(clk),
 								  .reset_p(reset_p),
+								  .timer_en(timer_en),
 								  .millis(current_time) );	
 
 	reg [6:0] melody_data;
 	reg [8:0] i;
+	reg buz_stop;
 	always @(posedge clk, posedge reset_p) begin
 		if (reset_p) begin 
 			last_time <= 32'b0;
 			i <= 0;
-			melody_data <= tone[0];
+			melody_data <= 0;
+			timer_en <= 0;
+			buz_stop <= 0;
 		end
 		else begin
 			if (current_time - last_time >= duration[i]) begin
 				last_time <= current_time;
 				melody_data <= tone[i+1];
 				i <= i + 1;
+				if (i == 372) begin
+					i <= 0;
+					timer_en <= 0;
+					buz_stop <= 1;
+				end
+			end
+			if (buz_on_p) begin
+				timer_en <= 1;
+				buz_stop <= 0;
+			end
+			else if (buz_on_n) begin
+				timer_en <= 0;
+				i <= 0;
+				melody_data <= 0;
+				buz_stop <= 1;
 			end
 		end
 	end
 	
-	buz buz_module_0(clk, reset_p, melody_data, buz_clk);	
+	buz buz_module_0(clk, reset_p, melody_data, buz_stop, buz_clk);	
 
 endmodule
