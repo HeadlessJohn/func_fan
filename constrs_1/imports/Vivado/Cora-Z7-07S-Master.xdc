@@ -111,7 +111,7 @@ set_property -dict { PACKAGE_PIN U12   IOSTANDARD LVCMOS33 } [get_ports { pwm_gr
 # set_property -dict { PACKAGE_PIN V15   IOSTANDARD LVCMOS33 } [get_ports { com[1]}]; #IO_L10P_T1_34 Sch=ck_io[29]
 # set_property -dict { PACKAGE_PIN T16   IOSTANDARD LVCMOS33 } [get_ports { com[2]}]; #IO_L9P_T1_DQS_34 Sch=ck_io[30]
 # set_property -dict { PACKAGE_PIN U17   IOSTANDARD LVCMOS33 } [get_ports { com[3]}]; #IO_L9N_T1_DQS_34 Sch=ck_io[31]
-# set_property -dict { PACKAGE_PIN T17   IOSTANDARD LVCMOS33 } [get_ports { seg_7[6] }]; #IO_L20P_T3_34 Sch=ck_io[32]
+set_property -dict { PACKAGE_PIN T17   IOSTANDARD LVCMOS33 } [get_ports { dht11_data }]; #IO_L20P_T3_34 Sch=ck_io[32]
 set_property -dict { PACKAGE_PIN R18   IOSTANDARD LVCMOS33 } [get_ports { buz_clk }]; #IO_L20N_T3_34 Sch=ck_io[33]
 set_property -dict { PACKAGE_PIN P18   IOSTANDARD LVCMOS33 } [get_ports { led_bar[0] }]; #IO_L23N_T3_34 Sch=ck_io[34]
 set_property -dict { PACKAGE_PIN N17   IOSTANDARD LVCMOS33 } [get_ports { led_bar[1] }]; #IO_L23P_T3_34 Sch=ck_io[35]

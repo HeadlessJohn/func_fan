@@ -357,3 +357,34 @@ module dht11_top (
                          .segment_data_ca (seg_7),
                          .com_sel         (com)      );
 endmodule
+
+
+module dht11_top_1 (
+    input clk, reset_p,
+    inout dht11_data,
+    output [3:0] bcd_humi_10,
+    output [3:0] bcd_humi_1,
+    output [3:0] bcd_temp_10,
+    output [3:0] bcd_temp_1
+    );
+
+    wire [7:0] humidity, temperature;
+    dht11 dht(  .clk        (clk),
+                .reset_p    (reset_p),
+                .dht11_data (dht11_data),
+                .humidity   (humidity),
+                .temperature(temperature),
+                .led_bar    (led_bar) );
+
+    wire [15:0] bcd_humi, bcd_tmpr;
+    bin_to_dec humi(.bin({4'b0000,humidity}),
+                    .bcd(bcd_humi)          );
+    bin_to_dec tmpr(.bin({4'b0000,temperature}),
+                    .bcd(bcd_tmpr)          );
+
+    assign bcd_humi_10 = bcd_humi[7:4];
+    assign bcd_humi_1  = bcd_humi[3:0];
+    assign bcd_temp_10 = bcd_tmpr[7:4];
+    assign bcd_temp_1  = bcd_tmpr[3:0];
+    
+endmodule

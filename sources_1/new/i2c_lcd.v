@@ -1623,6 +1623,7 @@ endmodule
 module fan_info( 
     input clk, reset_p,
     input [3:0] btn,
+	inout dht11_data,
 	output [7:0] led_bar,
     output scl, sda );
     
@@ -1695,19 +1696,19 @@ module fan_info(
 	end
 
 	reg [2:0] fan_speed;
-    reg [7:0] temp_10, temp_1;
-	reg [7:0] humi_10, humi_1;
+    wire [7:0] temp_10, temp_1;
+	wire [7:0] humi_10, humi_1;
     reg [7:0] time_h_1, time_m_10, time_m_1, time_s_10, time_s_1;
 	reg [(7*8)-1:0] fan_speed_display;
     always @(posedge clk, posedge reset_p) begin
         if (reset_p) begin
 			fan_speed   <= 0;
 			fan_speed_display <= 56'b0;
-            temp_10     <= 2;
-            temp_1      <= 4;
-			humi_10     <= 9;
-			humi_1      <= 0;
-			time_h_1    <= 2;
+            // temp_10     <= 0;
+            // temp_1      <= 0;
+			// humi_10     <= 0;
+			// humi_1      <= 0;
+			time_h_1    <= 0;
             time_m_10   <= 0;
             time_m_1    <= 0;
             time_s_10   <= 0;
@@ -1732,7 +1733,6 @@ module fan_info(
                     time_m_10 = 0;
                 end
             end 
-
 
             if (btn_p[0]) begin
 				fan_speed = fan_speed + 1;              
@@ -1851,6 +1851,13 @@ module fan_info(
         end
     end
 
+	dht11_top_1 dht(.clk            (clk),
+					.reset_p        (reset_p),
+					.dht11_data     (dht11_data),
+                    .bcd_humi_10    (humi_10),
+                    .bcd_humi_1     (humi_1),
+                    .bcd_temp_10    (temp_10),
+                    .bcd_temp_1     (temp_1)  );
 
     i2c_txt_lcd_top str(.clk        (clk),
                         .reset_p    (reset_p),

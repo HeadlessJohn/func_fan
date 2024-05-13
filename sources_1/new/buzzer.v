@@ -325,7 +325,7 @@ module time_millis #(
 endmodule
 
 
-module buz_test_top (
+module buz_top (
 	input clk, reset_p,
 	input buz_on,
 	output buz_clk
