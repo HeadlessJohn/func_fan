@@ -1622,9 +1622,10 @@ endmodule
 
 module fan_info( 
     input clk, reset_p,
-    input [3:0] btn,
 	inout dht11_data,
-	output [7:0] led_bar,
+	input [7:0] fan_speed,
+	input [3:0] fan_timer_state,
+    input [7:0] time_h_1, time_m_10, time_m_1, time_s_10, time_s_1,
     output scl, sda );
     
     localparam GOTO_LINE1    = 10'b00_0000_0001;
@@ -1641,9 +1642,6 @@ module fan_info(
 	clock_usec # (125) usec (clk, reset_p, clk_usec);
     clock_div_1000     msec (clk, reset_p, clk_usec, clk_msec);
     clock_div_1000      sec (clk, reset_p, clk_msec, clk_sec);
-
-    wire [3:0] btn_p;
-    button_cntr btn_0(clk, reset_p, btn[0], btn_p[0]);
 
 	reg [20:0] cnt_ms;
 	reg toggle_var;
@@ -1695,73 +1693,38 @@ module fan_info(
 		end
 	end
 
-	reg [2:0] fan_speed;
-    wire [7:0] temp_10, temp_1;
+	wire [7:0] temp_10, temp_1;
 	wire [7:0] humi_10, humi_1;
-    reg [7:0] time_h_1, time_m_10, time_m_1, time_s_10, time_s_1;
 	reg [(7*8)-1:0] fan_speed_display;
     always @(posedge clk, posedge reset_p) begin
         if (reset_p) begin
-			fan_speed   <= 0;
 			fan_speed_display <= 56'b0;
-            // temp_10     <= 0;
-            // temp_1      <= 0;
-			// humi_10     <= 0;
-			// humi_1      <= 0;
-			time_h_1    <= 0;
-            time_m_10   <= 0;
-            time_m_1    <= 0;
-            time_s_10   <= 0;
-            time_s_1    <= 0;
         end
-        else begin
-            if (clk_sec) begin
-                time_s_1 = time_s_1 + 1;
-                if (time_s_1 == 10) begin
-                    time_s_1 = 0;
-                    time_s_10 = time_s_10 + 1;
-                end
-                if (time_s_10 == 6) begin
-                    time_s_10 = 0;
-                    time_m_1 = time_m_1 + 1;
-                end
-                if (time_m_1 == 10) begin
-                    time_m_1 = 0;
-                    time_m_10 = time_m_10 + 1;
-                end
-                if (time_m_10 == 6) begin
-                    time_m_10 = 0;
-                end
-            end 
-
-            if (btn_p[0]) begin
-				fan_speed = fan_speed + 1;              
-            end
-			
+        else begin		
 			if (toggle_var) begin
 				case (fan_speed)
-					0 : fan_speed_display       = "       ";
-					1 : fan_speed_display       = "+      ";
-					2 : fan_speed_display       = "+*     ";
-					3 : fan_speed_display       = "+*+    ";
-					4 : fan_speed_display       = "+*+*   ";
-					5 : fan_speed_display       = "+*+*+  ";
-					6 : fan_speed_display       = "+*+*+* ";
-					7 : fan_speed_display       = "+*+*+*+";
-					default : fan_speed_display = "       ";
+					8'b0000_0001 : fan_speed_display       = "       ";
+					8'b0000_0010 : fan_speed_display       = "+      ";
+					8'b0000_0100 : fan_speed_display       = "+*     ";
+					8'b0000_1000 : fan_speed_display       = "+*+    ";
+					8'b0001_0000 : fan_speed_display       = "+*+*   ";
+					8'b0010_0000 : fan_speed_display       = "+*+*+  ";
+					8'b0100_0000 : fan_speed_display       = "+*+*+* ";
+					8'b1000_0000 : fan_speed_display       = "+*+*+*+";
+					default      : fan_speed_display       = "       ";
 				endcase 
 			end
 			else begin
 				case (fan_speed)
-					0 : fan_speed_display       = "       ";
-					1 : fan_speed_display       = "*      ";
-					2 : fan_speed_display       = "*+     ";
-					3 : fan_speed_display       = "*+*    ";
-					4 : fan_speed_display       = "*+*+   ";
-					5 : fan_speed_display       = "*+*+*  ";
-					6 : fan_speed_display       = "*+*+*+ ";
-					7 : fan_speed_display       = "*+*+*+*";
-					default : fan_speed_display = "       ";
+					8'b0000_0001 : fan_speed_display       = "       ";
+					8'b0000_0010 : fan_speed_display       = "*      ";
+					8'b0000_0100 : fan_speed_display       = "*+     ";
+					8'b0000_1000 : fan_speed_display       = "*+*    ";
+					8'b0001_0000 : fan_speed_display       = "*+*+   ";
+					8'b0010_0000 : fan_speed_display       = "*+*+*  ";
+					8'b0100_0000 : fan_speed_display       = "*+*+*+ ";
+					8'b1000_0000 : fan_speed_display       = "*+*+*+*";
+					default      : fan_speed_display       = "       ";
 				endcase 
 			end
         end
@@ -1836,8 +1799,8 @@ module fan_info(
                 SEND_LINE2 : begin
                     if (cnt_us < 50_000) begin //3ms
                         cnt_us_e = 1;
-						if ({fan_speed} == 0) begin
-							string = "    STOPPED!    ";
+						if ((fan_speed == 8'b0000_0001)||(fan_timer_state == 4'b0001)) begin
+							string = " TIMER STOPPED! ";
 						end
 						else begin
 							string = {"RUNNING ", time_h_1+8'h30, "h", time_m_10+8'h30, time_m_1+8'h30, "m", time_s_10+8'h30, time_s_1+8'h30, "s"};

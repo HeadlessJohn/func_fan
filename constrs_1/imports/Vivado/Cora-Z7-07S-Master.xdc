@@ -8,7 +8,7 @@ set_property -dict { PACKAGE_PIN H16   IOSTANDARD LVCMOS33 } [get_ports { clk }]
 create_clock -add -name sys_clk_pin -period 8.00 -waveform {0 4} [get_ports { clk }];#set
 
 ## RGB LEDs
-# set_property -dict { PACKAGE_PIN L15   IOSTANDARD LVCMOS33 } [get_ports { pwm_b }]; #IO_L22N_T3_AD7N_35 Sch=led0_b
+set_property -dict { PACKAGE_PIN L15   IOSTANDARD LVCMOS33 } [get_ports { led }]; #IO_L22N_T3_AD7N_35 Sch=led0_b
 # set_property -dict { PACKAGE_PIN G17   IOSTANDARD LVCMOS33 } [get_ports { pwm_g }]; #IO_L16P_T2_35 Sch=led0_g
 # set_property -dict { PACKAGE_PIN N15   IOSTANDARD LVCMOS33 } [get_ports { pwm_r }]; #IO_L21P_T3_DQS_AD14P_35 Sch=led0_r
 #set_property -dict { PACKAGE_PIN G14   IOSTANDARD LVCMOS33 } [get_ports { led1_b }]; #IO_0_35 Sch=led1_b
@@ -105,8 +105,8 @@ set_property -dict { PACKAGE_PIN T15   IOSTANDARD LVCMOS33 } [get_ports { btn[3]
 # set_property -dict { PACKAGE_PIN G15   IOSTANDARD LVCMOS33 } [get_ports { motor_pwm }]; #IO_L19N_T3_VREF_35 Sch=ck_io[13]
 
 ## ChipKit Inner Digital Header
-set_property -dict { PACKAGE_PIN R16   IOSTANDARD LVCMOS33 } [get_ports { pwm_blue  }]; #IO_L19P_T3_34 Sch=ck_io[26]
-set_property -dict { PACKAGE_PIN U12   IOSTANDARD LVCMOS33 } [get_ports { pwm_green }]; #IO_L2N_T0_34 Sch=ck_io[27]
+set_property -dict { PACKAGE_PIN R16   IOSTANDARD LVCMOS33 } [get_ports { pwm }]; #IO_L19P_T3_34 Sch=ck_io[26]
+# set_property -dict { PACKAGE_PIN U12   IOSTANDARD LVCMOS33 } [get_ports {  }]; #IO_L2N_T0_34 Sch=ck_io[27]
 # set_property -dict { PACKAGE_PIN U13   IOSTANDARD LVCMOS33 } [get_ports { com[0]}]; #IO_L3P_T0_DQS_PUDC_B_34 Sch=ck_io[28]
 # set_property -dict { PACKAGE_PIN V15   IOSTANDARD LVCMOS33 } [get_ports { com[1]}]; #IO_L10P_T1_34 Sch=ck_io[29]
 # set_property -dict { PACKAGE_PIN T16   IOSTANDARD LVCMOS33 } [get_ports { com[2]}]; #IO_L9P_T1_DQS_34 Sch=ck_io[30]
