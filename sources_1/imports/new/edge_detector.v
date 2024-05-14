@@ -51,7 +51,14 @@ module button_cntr(
 
     //클록 디바이더
     reg [16:0] clk_div;
-    always @(posedge clk) clk_div = clk_div + 1;
+    always @(posedge clk, posedge reset_p)begin
+        if (reset_p) begin
+            clk_div <= 0;
+        end
+        else begin
+            clk_div <= clk_div + 1;
+        end
+    end 
 
     //clk_div_16 엣지 검출
     wire clk_div_16;
@@ -60,8 +67,8 @@ module button_cntr(
     //버튼 입력 디바운싱 DFF, 1ms
     reg debounced_btn;
     always @(posedge clk, posedge reset_p) begin
-        if (reset_p) debounced_btn = 0;
-        else if (clk_div_16) debounced_btn = btn;
+        if (reset_p) debounced_btn <= 0;
+        else if (clk_div_16) debounced_btn <= btn;
     end
 
     //버튼입력 엣지 검출, 상승/하강 엣지

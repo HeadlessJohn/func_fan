@@ -45,15 +45,22 @@ module project_1(
                   .time_m_1       (cur_time[11: 8]),
                   .time_s_10      (cur_time[ 7: 4]),
                   .time_s_1       (cur_time[ 3: 0])    );
-            
+    
+    wire btn_short, btn_long;
+    btn_long_press btn_fan_cntr( .clk           (clk), 
+                                 .reset_p       (reset_p), 
+                                 .btn           (btn[0]), 
+                                 .btn_short_out (btn_short), 
+                                 .btn_long_out  (btn_long)    );
 
-    fan_controller #(125, 12) (.clk     (clk), 
-                               .reset_p (reset_p), 
-                               .btn     (btn[0]), 
-                               .fan_en  (fan_en), 
-                               .state   (fan_speed), 
-                               .pwm     (pwm), 
-                               .run_e   (run_e));
+    fan_controller #(125, 12) (.clk      (clk), 
+                               .reset_p  (reset_p), 
+                               .btn      (btn_short), 
+                               .set_idle (btn_long),
+                               .fan_en   (fan_en), 
+                               .state    (fan_speed), 
+                               .pwm      (pwm), 
+                               .run_e    (run_e));
 
     led_controller led_cntr(clk, reset_p, btn[1], led);
     
@@ -72,6 +79,7 @@ module fan_controller #(SYS_FREQ = 125, N = 12) (
     input clk, reset_p,
     input btn,              // 버튼 입력
     input fan_en,           // 팬 동작 enable 신호
+    input set_idle,         // IDLE 상태로 이동
     output reg [7:0] state,       // 현재 동작 state 표시
     output pwm, 
     output reg run_e);         // 출력 PWM 신호
@@ -85,10 +93,6 @@ module fan_controller #(SYS_FREQ = 125, N = 12) (
     localparam S_5    = 8'b0010_0000;
     localparam S_6    = 8'b0100_0000;
     localparam S_7    = 8'b1000_0000;
-
-    // 버튼 입력부 컨트롤러
-    wire btn_p;
-    button_cntr btn0(clk, reset_p, btn, btn_p);
         
     // FSM 
     reg [7:0] next_state;
@@ -107,13 +111,13 @@ module fan_controller #(SYS_FREQ = 125, N = 12) (
             next_state <= S_IDLE;
         end
         else begin
-            if (fan_en) begin // fan_en이 활성화 되었을 때만 동작
-                if (btn_p) begin
+            if ( (fan_en == 1) && (set_idle == 0) ) begin // fan_en이 활성화 되었을 때만 동작
+                if (btn) begin
                     next_state <= {state[6:0], state[7]}; // state를 1비트씩 shift하여 다음 state로 이동
                 end 
             end
-            else begin // fan_en이 0인 경우 IDLE 상태로 이동- fan 멈춤
-                next_state <= S_IDLE;
+            else begin // fan_en이 0인 경우 or set_idle이 1인 경우 IDLE 상태로 이동- fan 멈춤
+                next_state <= S_IDLE; 
             end
         end
     end
@@ -343,4 +347,107 @@ module led_controller(
                               .pwm_freq(100),
                               .pwm(led)
                               );    
+endmodule
+
+
+module btn_long_press(
+    input clk, reset_p,
+    input btn,
+    output [7:0]led_bar,
+    output reg btn_short_out,
+    output reg btn_long_out   );
+
+    localparam WAIT_FOR_PEDGE    = 8'b0000_0001;
+    localparam TIMER_RUNNING     = 8'b0000_0010;
+    localparam SHORT_PRESS_OUT   = 8'b0000_0100;
+    localparam LONG_PRESS_OUT    = 8'b0000_1000;
+    localparam START_PRESS_TIMER = 8'b0001_0000;
+    localparam TIMEOUT           = 8'b0010_0000;
+    
+
+    wire btn_p, btn_n;
+    button_cntr btn0(.clk(clk),
+                     .reset_p(reset_p), 
+                     .btn(btn),
+                     .btn_p_edge(btn_p),
+                     .btn_n_edge(btn_n));
+
+    wire clk_usec;
+	clock_usec # (125) clk_us(clk, reset_p, clk_usec);
+
+	// ms 카운터
+	reg [20:0] cnt_us;
+	reg cnt_us_e;
+	always @(negedge clk, posedge reset_p) begin
+		if (reset_p) begin
+			cnt_us <= 20'b0;
+		end
+		else begin
+			if (cnt_us_e) begin
+				if (clk_usec) begin
+					cnt_us <= cnt_us + 1;
+				end
+			end
+			else begin
+				cnt_us <= 20'b0;
+			end
+		end
+	end
+
+    reg [7:0] state, next_state;
+    assign led_bar = state;
+    always @(negedge clk, posedge reset_p) begin
+        if (reset_p) begin
+            state <= WAIT_FOR_PEDGE;
+        end
+        else begin
+            state <= next_state;
+        end
+    end
+
+    always @(posedge clk, posedge reset_p) begin
+        if (reset_p) begin
+            cnt_us_e <= 0;
+            btn_short_out <= 0;
+            btn_long_out <= 0;
+            next_state <= WAIT_FOR_PEDGE;
+        end
+        else begin
+            case (state)
+                WAIT_FOR_PEDGE : begin
+                    btn_short_out <= 0;
+                    btn_long_out <= 0;
+                    if (btn_p) begin // positive edge가 검출되면 타이머 시작
+                        cnt_us_e <= 1; // 카운터 활성화
+                        next_state <= TIMER_RUNNING;
+                    end
+                end
+
+                TIMER_RUNNING : begin
+                    if (cnt_us < 500_000) begin // 500ms
+                        if (btn_n) begin // 시간 내에 negative edge가 검출되면 숏프레스로 판단
+                            cnt_us_e <= 0;   //카운터를 초기화하고
+                            next_state <= SHORT_PRESS_OUT; // 숏프레스 출력
+                        end
+                    end
+                    else begin // 500ms가 지나도록 negative edge가 검출되지 않으면 롱프레스로 판단
+                        cnt_us_e <= 0; // 카운터를 초기화하고
+                        next_state <= LONG_PRESS_OUT; // 롱프레스 출력
+                    end
+                end
+
+                SHORT_PRESS_OUT : begin
+                    btn_short_out <= 1;
+                    next_state <= WAIT_FOR_PEDGE;
+                end
+
+                LONG_PRESS_OUT : begin
+                    btn_long_out <= 1;
+                    next_state <= WAIT_FOR_PEDGE;
+                end
+
+            endcase
+        end
+    end
+
 endmodule
