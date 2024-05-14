@@ -1799,8 +1799,13 @@ module fan_info(
                 SEND_LINE2 : begin
                     if (cnt_us < 50_000) begin //3ms
                         cnt_us_e = 1;
-						if ((fan_speed == 8'b0000_0001)||(fan_timer_state == 4'b0001)) begin
-							string = " TIMER STOPPED! ";
+						if (fan_timer_state == 4'b0001) begin
+							if (fan_speed == 8'b0000_0001) begin
+								string = "  WA!! SANS!!!  ";
+							end
+							else begin
+								string = "  FAN  RUNNING  ";
+							end
 						end
 						else begin
 							string = {"RUNNING ", time_h_1+8'h30, "h", time_m_10+8'h30, time_m_1+8'h30, "m", time_s_10+8'h30, time_s_1+8'h30, "s"};
