@@ -46,12 +46,18 @@ module project_1(
                   .time_s_10      (cur_time[ 7: 4]),
                   .time_s_1       (cur_time[ 3: 0])    );
     
-    wire btn_short, btn_long;
+    wire [2:0] btn_short, btn_long;
     btn_long_press btn_fan_cntr( .clk           (clk), 
                                  .reset_p       (reset_p), 
                                  .btn           (btn[0]), 
-                                 .btn_short_out (btn_short), 
-                                 .btn_long_out  (btn_long)    );
+                                 .btn_short_out (btn_short[0]), 
+                                 .btn_long_out  (btn_long[0])    );
+                                 
+    btn_long_press btn_led_cntr( .clk           (clk), 
+                                 .reset_p       (reset_p), 
+                                 .btn           (btn[1]), 
+                                 .btn_short_out (btn_short[1]), 
+                                 .btn_long_out  (btn_long[1])    );
 
     fan_controller #(125, 12) (.clk      (clk), 
                                .reset_p  (reset_p), 
@@ -62,7 +68,7 @@ module project_1(
                                .pwm      (pwm), 
                                .run_e    (run_e));
 
-    led_controller led_cntr(clk, reset_p, btn[1], led);
+    led_controller led_cntr(clk, reset_p, btn_short[1], btn_long[1], led);
     
     fan_timer fan_tmr(clk, reset_p, btn[2], run_e, alarm, fan_timer_state, timeout_pedge, cur_time, timer_led);
 
@@ -304,15 +310,13 @@ endmodule
 module led_controller(
     input clk, reset_p,
     input btn,
+    input led_clr,
     output led);
     
     parameter IDLE      = 4'b0001;      // OFF
     parameter LED_1STEP = 4'b0010;      // 1단계
     parameter LED_2STEP = 4'b0100;      // 2단계
     parameter LED_3STEP = 4'b1000;      // 3단계
-    
-    wire btn_pedge;
-    button_cntr btn_ctrl(.clk(clk), .reset_p(reset_p), .btn(btn), .btn_p_edge(btn_pedge));
     
     reg [6:0] duty;    
     reg [3:0] state;      // led_ringcounter
@@ -321,20 +325,26 @@ module led_controller(
             state = IDLE;
             duty = 0;
         end
-        else if(btn_pedge)begin
-            if(state == IDLE)begin
-                state = LED_1STEP;
-                duty = 13;
+        else begin 
+            if(btn)begin
+                if(state == IDLE)begin
+                    state = LED_1STEP;
+                    duty = 13;
+                end
+                else if(state == LED_1STEP)begin
+                    state = LED_2STEP;
+                    duty = 38;
+                end
+                else if(state == LED_2STEP)begin
+                    state = LED_3STEP;
+                    duty = 64;
+                end
+                else begin
+                    state = IDLE;
+                    duty = 0;
+                end
             end
-            else if(state == LED_1STEP)begin
-                state = LED_2STEP;
-                duty = 38;
-            end
-            else if(state == LED_2STEP)begin
-                state = LED_3STEP;
-                duty = 64;
-            end
-            else begin
+            else if (led_clr)begin
                 state = IDLE;
                 duty = 0;
             end
