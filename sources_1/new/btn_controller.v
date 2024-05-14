@@ -123,8 +123,8 @@ module btn_long_press(
 endmodule
 
 module btn_double_long #(
-    parameter HOLD_TIME = 700_000, // 700ms
-    parameter DOUBLE_TIME = 100_000 // 100ms
+    parameter HOLD_TIME   = 700_000, // 700ms
+              DOUBLE_TIME = 100_000  // 100ms
 )(
     input clk, reset_p,
     input btn,
@@ -132,12 +132,12 @@ module btn_double_long #(
     output reg double,
     output reg long );
     
-    localparam WAIT_FOR_PEDGE         = 8'b0000_0001;
-    localparam TIMER_RUNNING          = 8'b0000_0010;
-    localparam WAIT_FOR_SECOND_PEDGE  = 8'b0000_0100;
-    localparam SHORT_PRESS_OUT        = 8'b0000_1000;
-    localparam LONG_PRESS_OUT         = 8'b0001_0000;
-    localparam DOUBLE_TAP_OUT         = 8'b0010_0000;
+    localparam WAIT_FOR_PEDGE         = 8'b0000_0001 ,
+               TIMER_RUNNING          = 8'b0000_0010 ,
+               WAIT_FOR_SECOND_PEDGE  = 8'b0000_0100 ,
+               SHORT_PRESS_OUT        = 8'b0000_1000 ,
+               LONG_PRESS_OUT         = 8'b0001_0000 ,
+               DOUBLE_TAP_OUT         = 8'b0010_0000 ;
     
 
     wire btn_p, btn_n;
@@ -190,11 +190,11 @@ module btn_double_long #(
         end
         else begin
             case (state)
-                WAIT_FOR_PEDGE : begin
+                WAIT_FOR_PEDGE : begin 
                     single <= 0;
                     long <= 0;
                     double <= 0;
-                    if(btn_p)begin
+                    if(btn_p)begin                               // positive edge가 검출되면 타이머 시작
                         cnt_us_e <= 1;
                         next_state <= TIMER_RUNNING;
                     end
@@ -203,11 +203,11 @@ module btn_double_long #(
                 TIMER_RUNNING : begin
                     if (cnt_us < HOLD_TIME) begin                // 700ms
                         if (btn_n) begin                         // 시간 내에 negative edge가 검출되면 싱글or더블로 판단
-                            cnt_us_e <= 0;                       //카운터를 초기화하고
+                            cnt_us_e <= 0;                       // 카운터를 초기화하고
                             next_state <= WAIT_FOR_SECOND_PEDGE; // 싱글탭or더블탭 판단으로 이동
                         end
                     end
-                    else begin                                   // 500ms가 지나도록 negative edge가 검출되지 않으면 롱프레스로 판단
+                    else begin                                   // 700ms가 지나도록 negative edge가 검출되지 않으면 롱프레스로 판단
                         cnt_us_e <= 0;                           // 카운터를 초기화하고
                         next_state <= LONG_PRESS_OUT;            // 롱프레스 출력
                     end
@@ -216,7 +216,7 @@ module btn_double_long #(
                 WAIT_FOR_SECOND_PEDGE : begin 
                     if (cnt_us < DOUBLE_TIME) begin             // 100ms동안 새로운 입력을 기다림
                         cnt_us_e <= 1;                          // 카운터를 활성화
-                        if(btn_p) begin                         // 300ms 동안 새로운 positive edge 검출시
+                        if(btn_p) begin                         // 100ms 동안 새로운 positive edge 검출시
                             cnt_us_e <= 0;                      // 카운터를 초기화하고
                             next_state <= DOUBLE_TAP_OUT;       // 더블탭으로 판단
                         end
@@ -227,17 +227,17 @@ module btn_double_long #(
                     end
                 end
 
-                SHORT_PRESS_OUT : begin
+                SHORT_PRESS_OUT : begin                         // 싱글탭 출력
                     single <= 1;
                     next_state <= WAIT_FOR_PEDGE;
                 end
 
-                LONG_PRESS_OUT : begin
+                LONG_PRESS_OUT : begin                          // 롱프레스 출력
                     long <= 1;
                     next_state <= WAIT_FOR_PEDGE;
                 end
 
-                DOUBLE_TAP_OUT : begin
+                DOUBLE_TAP_OUT : begin                          // 더블탭 출력
                     double <= 1;
                     next_state <= WAIT_FOR_PEDGE;
                 end
