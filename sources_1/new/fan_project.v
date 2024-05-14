@@ -46,29 +46,34 @@ module project_1(
                   .time_s_10      (cur_time[ 7: 4]),
                   .time_s_1       (cur_time[ 3: 0])    );
     
-    wire [2:0] btn_short, btn_long;
-    btn_long_press btn_fan_cntr( .clk           (clk), 
-                                 .reset_p       (reset_p), 
-                                 .btn           (btn[0]), 
-                                 .btn_short_out (btn_short[0]), 
-                                 .btn_long_out  (btn_long[0])    );
+    wire [1:0] btn_single, btn_double, btn_long;
+    btn_double_long btn_fan_cntr( .clk           (clk), 
+                                  .reset_p       (reset_p), 
+                                  .btn           (btn[0]),
+                                  .single        (btn_single[0]), 
+                                  .double        (btn_double[0]), 
+                                  .long          (btn_long[0])    );
+
+    btn_double_long btn_led_cntr( .clk           (clk), 
+                                  .reset_p       (reset_p), 
+                                  .btn           (btn[1]),
+                                  .single        (btn_single[1]), 
+                                  .double        (btn_double[1]), 
+                                  .long          (btn_long[1])    );
                                  
-    btn_long_press btn_led_cntr( .clk           (clk), 
-                                 .reset_p       (reset_p), 
-                                 .btn           (btn[1]), 
-                                 .btn_short_out (btn_short[1]), 
-                                 .btn_long_out  (btn_long[1])    );
+
 
     fan_controller #(125, 12) (.clk      (clk), 
                                .reset_p  (reset_p), 
-                               .btn      (btn_short), 
-                               .set_idle (btn_long),
+                               .btn      (btn_single[0]), 
+                               .btn_back (btn_double[0]),
+                               .set_idle (btn_long[0]),
                                .fan_en   (fan_en), 
                                .state    (fan_speed), 
                                .pwm      (pwm), 
                                .run_e    (run_e));
 
-    led_controller led_cntr(clk, reset_p, btn_short[1], btn_long[1], led);
+    led_controller led_cntr(clk, reset_p, btn_single[1], btn_long[1], led);
     
     fan_timer fan_tmr(clk, reset_p, btn[2], run_e, alarm, fan_timer_state, timeout_pedge, cur_time, timer_led);
 
@@ -84,6 +89,7 @@ endmodule
 module fan_controller #(SYS_FREQ = 125, N = 12) (
     input clk, reset_p,
     input btn,              // 버튼 입력
+    input btn_back,         // 뒤로가기 버튼 입력
     input fan_en,           // 팬 동작 enable 신호
     input set_idle,         // IDLE 상태로 이동
     output reg [7:0] state,       // 현재 동작 state 표시
@@ -121,6 +127,9 @@ module fan_controller #(SYS_FREQ = 125, N = 12) (
                 if (btn) begin
                     next_state <= {state[6:0], state[7]}; // state를 1비트씩 shift하여 다음 state로 이동
                 end 
+                if (btn_back) begin
+                    next_state <= {state[0], state[7:1]}; // state를 1비트씩 shift하여 이전 state로 이동
+                end
             end
             else begin // fan_en이 0인 경우 or set_idle이 1인 경우 IDLE 상태로 이동- fan 멈춤
                 next_state <= S_IDLE; 
@@ -457,6 +466,130 @@ module btn_long_press(
                 end
 
             endcase
+        end
+    end
+
+endmodule
+
+module btn_double_long(
+    input clk, reset_p,
+    input btn,
+    output reg single,
+    output reg double,
+    output reg long );
+
+    localparam WAIT_FOR_PEDGE         = 8'b0000_0001;
+    localparam TIMER_RUNNING          = 8'b0000_0010;
+    localparam WAIT_FOR_SECOND_PEDGE  = 8'b0000_0100;
+    localparam SHORT_PRESS_OUT        = 8'b0000_1000;
+    localparam LONG_PRESS_OUT         = 8'b0001_0000;
+    localparam DOUBLE_TAP_OUT         = 8'b0010_0000;
+    
+
+    wire btn_p, btn_n;
+    button_cntr btn0(.clk(clk),
+                     .reset_p(reset_p), 
+                     .btn(btn),
+                     .btn_p_edge(btn_p),
+                     .btn_n_edge(btn_n));
+
+    wire clk_usec;
+	clock_usec # (125) clk_us(clk, reset_p, clk_usec);
+
+	// ms 카운터
+	reg [20:0] cnt_us;
+	reg cnt_us_e;
+	always @(negedge clk, posedge reset_p) begin
+		if (reset_p) begin
+			cnt_us <= 20'b0;
+		end
+		else begin
+			if (cnt_us_e) begin
+				if (clk_usec) begin
+					cnt_us <= cnt_us + 1;
+				end
+			end
+			else begin
+				cnt_us <= 20'b0;
+			end
+		end
+	end
+
+    reg [7:0] state, next_state;
+    assign led_bar = state;
+    always @(negedge clk, posedge reset_p) begin
+        if (reset_p) begin
+            state <= WAIT_FOR_PEDGE;
+        end
+        else begin
+            state <= next_state;
+        end
+    end
+
+    always @(posedge clk, posedge reset_p) begin
+        if (reset_p) begin
+            cnt_us_e <= 0;
+            single <= 0;
+            long <= 0;
+            double <= 0;
+            next_state <= WAIT_FOR_PEDGE;
+        end
+        else begin
+            case (state)
+                WAIT_FOR_PEDGE : begin
+                    single <= 0;
+                    long <= 0;
+                    double <= 0;
+                    if(btn_p)begin
+                        cnt_us_e <= 1;
+                        next_state <= TIMER_RUNNING;
+                    end
+                end
+
+                TIMER_RUNNING : begin
+                    if (cnt_us < 700_000) begin                  // 300ms
+                        if (btn_n) begin                         // 시간 내에 negative edge가 검출되면 싱글or더블로 판단
+                            cnt_us_e <= 0;                       //카운터를 초기화하고
+                            next_state <= WAIT_FOR_SECOND_PEDGE; // 싱글탭or더블탭 판단으로 이동
+                        end
+                    end
+                    else begin                                   // 500ms가 지나도록 negative edge가 검출되지 않으면 롱프레스로 판단
+                        cnt_us_e <= 0;                           // 카운터를 초기화하고
+                        next_state <= LONG_PRESS_OUT;            // 롱프레스 출력
+                    end
+                end
+                
+                WAIT_FOR_SECOND_PEDGE : begin 
+                    if (cnt_us < 200_000) begin                // 300ms동안 새로운 입력을 기다림
+                        cnt_us_e <= 1;                          // 카운터를 활성화
+                        if(btn_p) begin                         // 300ms 동안 새로운 positive edge 검출시
+                            cnt_us_e <= 0;                      // 카운터를 초기화하고
+                            next_state <= DOUBLE_TAP_OUT;       // 더블탭으로 판단
+                        end
+                    end
+                    else begin                                  // 300ms가 지나도록 새로운 입력이 들어오지 않으면
+                        cnt_us_e <= 0;                          // 카운터를 초기화하고
+                        next_state <= SHORT_PRESS_OUT;          // 싱글탭으로 판단
+                    end
+                end
+
+                SHORT_PRESS_OUT : begin
+                    single <= 1;
+                    next_state <= WAIT_FOR_PEDGE;
+                end
+
+                LONG_PRESS_OUT : begin
+                    long <= 1;
+                    next_state <= WAIT_FOR_PEDGE;
+                end
+
+                DOUBLE_TAP_OUT : begin
+                    double <= 1;
+                    next_state <= WAIT_FOR_PEDGE;
+                end
+
+            endcase
+
         end
     end
 
