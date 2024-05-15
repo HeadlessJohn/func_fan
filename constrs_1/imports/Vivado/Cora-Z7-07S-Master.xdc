@@ -89,7 +89,7 @@ set_property -dict { PACKAGE_PIN J16   IOSTANDARD LVCMOS33 } [get_ports { vauxn1
 #set_property -dict { PACKAGE_PIN A20   IOSTANDARD LVCMOS33 } [get_ports { ck_a11 }]; #IO_L2N_T0_AD8N_35 Sch=ad_n[8]
 
 ## ChipKit Outer Digital Header
-# set_property -dict { PACKAGE_PIN U14   IOSTANDARD LVCMOS33 } [get_ports { btn_short_out }]; #IO_L11P_T1_SRCC_34 Sch=ck_io[0]
+set_property -dict { PACKAGE_PIN U14   IOSTANDARD LVCMOS33 } [get_ports { servo_pwm }]; #IO_L11P_T1_SRCC_34 Sch=ck_io[0]
 # set_property -dict { PACKAGE_PIN V13   IOSTANDARD LVCMOS33 } [get_ports { btn_long_out }]; #IO_L3N_T0_DQS_34 Sch=ck_io[1]
 set_property -dict { PACKAGE_PIN T14   IOSTANDARD LVCMOS33 } [get_ports { pwm }]; #IO_L5P_T0_34 Sch=ck_io[2]
 # set_property -dict { PACKAGE_PIN T15   IOSTANDARD LVCMOS33 } [get_ports { btn[3] }]; #IO_L5N_T0_34 Sch=ck_io[3]
@@ -101,8 +101,8 @@ set_property -dict { PACKAGE_PIN T14   IOSTANDARD LVCMOS33 } [get_ports { pwm }]
 # set_property -dict { PACKAGE_PIN M18   IOSTANDARD LVCMOS33 } [get_ports { led_bar[5] }]; #IO_L8N_T1_AD10N_35 Sch=ck_io[9]
 # set_property -dict { PACKAGE_PIN U15   IOSTANDARD LVCMOS33 } [get_ports { btn[0] }]; #IO_L11N_T1_SRCC_34 Sch=ck_io[10]
 # set_property -dict { PACKAGE_PIN K18   IOSTANDARD LVCMOS33 } [get_ports { btn[1] }]; #IO_L12N_T1_MRCC_35 Sch=ck_io[11]
-# set_property -dict { PACKAGE_PIN J18   IOSTANDARD LVCMOS33 } [get_ports { btn[2] }]; #IO_L14P_T2_AD4P_SRCC_35 Sch=ck_io[12]
-# set_property -dict { PACKAGE_PIN G15   IOSTANDARD LVCMOS33 } [get_ports { btn[3] }]; #IO_L19N_T3_VREF_35 Sch=ck_io[13]
+set_property -dict { PACKAGE_PIN J18   IOSTANDARD LVCMOS33 } [get_ports { uart_rx }]; #IO_L14P_T2_AD4P_SRCC_35 Sch=ck_io[12]
+set_property -dict { PACKAGE_PIN G15   IOSTANDARD LVCMOS33 } [get_ports { uart_tx }]; #IO_L19N_T3_VREF_35 Sch=ck_io[13]
 
 ## ChipKit Inner Digital Header
 set_property -dict { PACKAGE_PIN R16   IOSTANDARD LVCMOS33 } [get_ports { btn[0] }]; #IO_L19P_T3_34 Sch=ck_io[26]
