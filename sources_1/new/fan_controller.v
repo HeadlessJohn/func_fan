@@ -91,6 +91,7 @@ module fan_controller #(SYS_FREQ = 125, N = 12) (
 
                 S_7 : begin
                     fan_duty <= 4095;
+                    run_e = 1;
                 end
             endcase
         end

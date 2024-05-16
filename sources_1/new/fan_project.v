@@ -5,6 +5,7 @@ module project_1(
     input        clk, 
     input        reset_p,
     input  [3:0] btn,
+    input        clap,
     inout        dht11_data,
 
     // output [7:0] led_bar,   //for debug
@@ -60,6 +61,13 @@ module project_1(
                   .time_m_1       (cur_time[11: 8]),
                   .time_s_10      (cur_time[ 7: 4]),
                   .time_s_1       (cur_time[ 3: 0])    );
+
+    wire clap_single, clap_double;
+    clap_controller clap_inst (.clk     (clk),
+                               .reset_p (reset_p),
+                               .clap    (clap),
+                               .single  (clap_single),
+                               .double  (clap_double)  );
     
     btn_double_long #(BTN_HOLD_TIME, BTN_DOUBLE_TAP_TIME) btn_fan_cntr  (.clk     (clk), 
                                                                          .reset_p (reset_p), 
@@ -82,22 +90,26 @@ module project_1(
                                                                          .double  (btn_double[3]), 
                                                                          .long    (btn_long[3])    );
 
+    wire set_fan_idle;
+    wire wind_inc;
+    assign set_fan_idle = btn_long[0] || clap_double; // 두번박수로 팬 멈추기
+    assign wind_inc = btn_single[0] || clap_single; // 한번박수로 바람세기 증가
     fan_controller #(SYS_FREQ, 12) (.clk      (clk), 
                                     .reset_p  (reset_p), 
-                                    .btn      (btn_single[0]), 
+                                    .btn      (wind_inc), 
                                     .btn_back (btn_double[0]),
-                                    .set_idle (btn_long[0]),
+                                    .set_idle (set_fan_idle),
                                     .fan_en   (fan_en), 
                                     .state    (fan_speed), 
                                     .pwm      (pwm), 
                                     .run_e    (run_e));
-    wire [11:0] duty_out;
+    // wire [11:0] duty_out;
     wire rot_en;
     assign rot_en = ~fan_speed[0];
     servo_rotation servo_inst(.clk        (clk), 
                               .reset_p    (reset_p), 
-                              .btn_single (btn_single[3]), 
-                              .btn_double (btn_double[3]), 
+                              .start_stop (btn_single[3]), 
+                              .rot_toggle (btn_double[3]), 
                               .btn_long   (btn_long[3]), 
                               .rot_en     (rot_en),
                             //   .duty_out   (duty_out),
@@ -171,7 +183,7 @@ module uart_tx_string (
                 str_parse[ 3] <= string[ 31: 24];
                 str_parse[ 2] <= string[ 23: 16];
                 str_parse[ 1] <= string[ 15:  8];
-                str_parse[ 0] <= string[ 7:   0];
+                str_parse[ 0] <= string[  7:  0];
             end
         end
     end
@@ -284,4 +296,37 @@ module servo_test(
     servo_rotation serv(clk, reset_p, btn_single, btn_double, btn_long, led_bar, servo_pwm);
 
     
+endmodule
+
+
+module clap_test (
+    input clk,
+    input reset_p,
+    input clap,
+    output reg single_var,
+    output reg double_var
+);
+
+    clap_controller clap_inst(.clk     (clk),
+                              .reset_p (reset_p),
+                              .clap    (clap),
+                              .single  (single),
+                              .double  (double) );
+
+    T_flip_flop_p toggle(clk, reset_p, single, toggle_xy);
+
+    always @(posedge clk, posedge reset_p) begin
+        if (reset_p) begin
+            single_var <= 0;
+            double_var <= 0;
+        end
+        else begin
+            if (single) begin
+                single_var <= ~single_var;
+            end
+            else if (double) begin
+                double_var <= ~double_var;
+            end
+        end
+    end
 endmodule

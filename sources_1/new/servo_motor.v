@@ -7,8 +7,8 @@ module servo_rotation #(
     parameter N = 12
 ) (
     input clk, reset_p,
-    input btn_single,
-    input btn_double,
+    input start_stop,
+    input rot_toggle,
     input btn_long,
     input rot_en,
     output [7:0]duty_out,
@@ -57,10 +57,10 @@ module servo_rotation #(
             on_off <= 1'b0;
         end
         else begin
-            if (btn_single) begin // 누를때마다 ON/OFF
+            if (start_stop) begin // 누를때마다 ON/OFF
                 on_off = ~on_off;
             end
-            else if (btn_double) begin // 더블탭 하면 강제 방향전환
+            else if (rot_toggle) begin // 더블탭 하면 강제 방향전환
                 dir_toggle = ~dir_toggle;
             end
             else begin
