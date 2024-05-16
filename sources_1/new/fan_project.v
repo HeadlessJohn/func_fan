@@ -6,11 +6,14 @@ module project_1(
     input        reset_p,
     input  [3:0] btn,
     input        clap,
+    input        echo,
     inout        dht11_data,
 
-    // output [7:0] led_bar,   //for debug
     // output [3:0] com,       //for debug
     // output [7:0] seg_7,     //for debug
+    output [7:0] led_bar,   //for debug
+
+    output       trig,      // 초음파센서 트리거
     output       servo_pwm, // 좌우 회전 기능
     output       pwm, 
     output       led,
@@ -33,7 +36,7 @@ module project_1(
     wire [3:0]  btn_double; 
     wire [3:0]  btn_long;
     assign      fan_en = timeout_pedge ? 0 : 1;
-    assign      led_bar = {fan_led[4:1], timer_led[3:0]};
+    // assign      led_bar = {fan_led[4:1], timer_led[3:0]};
     reg         buz_on;
     always @(posedge clk, posedge reset_p)begin
         if(reset_p)begin
@@ -62,6 +65,13 @@ module project_1(
                   .time_s_10      (cur_time[ 7: 4]),
                   .time_s_1       (cur_time[ 3: 0])    );
 
+    wire sencer;
+    ultra_sonic_controller us_inst(.clk     (clk),
+                                   .reset_p (reset_p),
+                                   .echo    (echo),
+                                   .trig    (trig),
+                                   .sencer  (sencer)  );
+    assign led_bar = {7'b0, sencer};
     wire clap_single, clap_double;
     clap_controller clap_inst (.clk     (clk),
                                .reset_p (reset_p),
@@ -92,7 +102,7 @@ module project_1(
 
     wire set_fan_idle;
     wire wind_inc;
-    assign set_fan_idle = btn_long[0] || clap_double; // 두번박수로 팬 멈추기
+    assign set_fan_idle = btn_long[0] || clap_double || sencer; // 두번박수로 팬 멈추기, 초음파센서로 팬 멈추기
     assign wind_inc = btn_single[0] || clap_single; // 한번박수로 바람세기 증가
     fan_controller #(SYS_FREQ, 12) (.clk      (clk), 
                                     .reset_p  (reset_p), 
