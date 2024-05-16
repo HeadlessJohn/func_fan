@@ -46,7 +46,7 @@ module project_1(
             if(timeout_pedge)begin
                 buz_on <= 1;
             end
-            if(btn) begin
+            if(btn || clap) begin
                 buz_on <= 0;
             end
         end
