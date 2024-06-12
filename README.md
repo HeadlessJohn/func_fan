@@ -27,3 +27,6 @@
  - 안전 거리 인식 https://youtu.be/eSFNrJpX_fQ
  - 박수 인식 https://youtu.be/nkvddNRvoq0
  - 부저 알람 https://youtu.be/Eb78H_71BTU
+
+## PPT
+ - https://www.miricanvas.com/v/137nv2j
